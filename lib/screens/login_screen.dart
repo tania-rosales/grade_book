@@ -132,6 +132,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   ),
                   const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(onPressed: _isLoading ? null : _handleLogin, 
+                    child: _isLoading 
+                    ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    ) : const Text(
+                      'Iniciar Sesión',
+                      style: TextStyle(fontSize: 16),
+                    ) 
+                    ),
+                  )
                 ],
               ),
             ),
