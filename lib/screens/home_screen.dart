@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:grade_book_tania/model/student.dart';
+import 'package:grade_book_tania/model/student_bk.dart';
 import 'package:grade_book_tania/screens/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,6 +10,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  //Array con los datos quemados para simular datos de la base
+  //este array contiene instancias de la class Student del archivo student.dart
   final List<Student> _estudiantes = [
     Student(id: '1', nombre: 'María López', nota: 9.2),
     Student(id: '2', nombre: 'Carlos Hernández', nota: 7.5),
@@ -18,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Student(id: '5', nombre: 'Cristian Portillo', nota: 6.1),
   ];
 
+  //función para manejar el logout
   void _handleLogout() {
     Navigator.pushReplacement(
       context,
