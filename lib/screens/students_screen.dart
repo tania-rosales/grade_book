@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:grade_book_tania/screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../model/student.dart';
 import 'add_student_screen.dart';
+
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
@@ -141,12 +143,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
         title: const Text('GradeBook'),
         centerTitle: true,
         actions: [
-          // ─── Botón de recargar ───
-          // Permite recargar la lista manualmente (útil para ver cambios)
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Recargar',
             onPressed: _cargarEstudiantes,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
           ),
         ],
       ),
