@@ -1,9 +1,20 @@
+// ============================================================================
+// students_screen.dart - CRUD completo de estudiantes
+// ============================================================================
+//
+// Operaciones:
+// - READ:   _cargarEstudiantes() → SELECT * FROM estudiantes
+// - CREATE: Navega a AddStudentScreen → INSERT
+// - UPDATE: Navega a EditStudentScreen → UPDATE ... WHERE id = ?
+// - DELETE: _eliminarEstudiante() → DELETE FROM estudiantes WHERE id = ?
+// ============================================================================
+
 import 'package:flutter/material.dart';
-import 'package:grade_book_tania/screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../model/student.dart';
 import 'add_student_screen.dart';
-
+import 'edit_student_screen.dart';
+import 'login_screen.dart';
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
@@ -13,28 +24,9 @@ class StudentsScreen extends StatefulWidget {
 }
 
 class _StudentsScreenState extends State<StudentsScreen> {
-  // ═══════════════════════════════════════════════════════════════════
-  // ESTADO
-  // ═══════════════════════════════════════════════════════════════════
-
-  // ─── Referencia al cliente de Supabase ───
   final _supabase = Supabase.instance.client;
-
-  // ─── Lista de estudiantes (empieza vacía, se llena desde Supabase) ───
   List<Student> _estudiantes = [];
-
-  // ─── Estado de carga ───
   bool _isLoading = true;
-
-  // ═══════════════════════════════════════════════════════════════════
-  // CICLO DE VIDA: initState()
-  // ═══════════════════════════════════════════════════════════════════
-  //
-  // 📚 initState() se ejecuta UNA VEZ cuando la pantalla se crea.
-  // Es el momento perfecto para cargar los datos iniciales.
-  //
-  // Analogía: Es como cuando abres una app y ves un spinner de carga
-  // por un momento — eso es initState() llamando a _cargarEstudiantes().
 
   @override
   void initState() {
@@ -42,41 +34,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
     _cargarEstudiantes();
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // MÉTODO: _cargarEstudiantes() — READ
-  // ═══════════════════════════════════════════════════════════════════
-  //
-  // 📚 ¿Qué hace este método paso a paso?
-  //
-  // 1. Activa el spinner de carga
-  // 2. Le pide a Supabase: "dame todas las filas de la tabla estudiantes"
-  //    → Supabase traduce esto a: SELECT * FROM estudiantes ORDER BY created_at
-  // 3. Supabase responde con una lista de Maps (JSON)
-  // 4. Convertimos cada Map a un objeto Student con fromJson()
-  // 5. Guardamos la lista y desactivamos el spinner
-  //
-  // .from('estudiantes') → indica la tabla
-  // .select()            → trae todas las columnas (equivale a SELECT *)
-  // .order(...)          → ordena los resultados
-
+  // ─── READ ───
   Future<void> _cargarEstudiantes() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() { _isLoading = true; });
 
     try {
-      // ─── Consultar Supabase ───
-      // Esto es equivalente a:
-      //   SELECT * FROM estudiantes ORDER BY created_at DESC
       final data = await _supabase
           .from('estudiantes')
           .select()
           .order('created_at', ascending: false);
 
-      // ─── Convertir JSON → objetos Student ───
-      // data es una List<Map<String, dynamic>>
-      // .map() recorre cada Map y lo convierte con fromJson()
-      // .toList() lo convierte de Iterable a List
       setState(() {
         _estudiantes = (data as List)
             .map((json) => Student.fromJson(json))
@@ -84,48 +51,87 @@ class _StudentsScreenState extends State<StudentsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      // Si hay error (sin internet, tabla no existe, etc.)
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() { _isLoading = false; });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error al cargar: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // MÉTODO: _navegarAAgregar() — Abre la pantalla de CREATE
-  // ═══════════════════════════════════════════════════════════════════
-  //
-  // 📚 Usamos Navigator.push (no pushReplacement) porque QUEREMOS
-  // volver a esta pantalla después de agregar un estudiante.
-  //
-  // .then((resultado) => ...) se ejecuta CUANDO el usuario regresa.
-  // Si resultado es true, significa que sí agregó un estudiante,
-  // entonces recargamos la lista para mostrar el nuevo dato.
-
+  // ─── CREATE: Navegar a agregar ───
   Future<void> _navegarAAgregar() async {
     final resultado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (context) => const AddStudentScreen()),
     );
+    if (resultado == true) _cargarEstudiantes();
+  }
 
-    // Si regresó con true → recargar la lista
-    if (resultado == true) {
+  // ─── UPDATE: Navegar a editar ───
+  // Le pasamos el Student completo para prellenar los campos.
+  Future<void> _navegarAEditar(Student estudiante) async {
+    final resultado = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditStudentScreen(estudiante: estudiante),
+      ),
+    );
+    if (resultado == true) _cargarEstudiantes();
+  }
+
+  // ─── DELETE ───
+  // Muestra confirmación antes de eliminar.
+  // Equivale a: DELETE FROM estudiantes WHERE id = ?
+  Future<void> _eliminarEstudiante(Student estudiante) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar estudiante'),
+        content: Text(
+          '¿Estás seguro de eliminar a ${estudiante.nombre}?\n\nEsta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await _supabase
+          .from('estudiantes')
+          .delete()
+          .eq('id', estudiante.id!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${estudiante.nombre} eliminado'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       _cargarEstudiantes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // HELPER: Color según la nota
-  // ═══════════════════════════════════════════════════════════════════
   Color _getColorForNota(double nota) {
     if (nota >= 9.0) return Colors.green.shade700;
     if (nota >= 7.0) return Colors.blue.shade700;
@@ -133,9 +139,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return Colors.red.shade700;
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // BUILD
-  // ═══════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,34 +166,21 @@ class _StudentsScreenState extends State<StudentsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── Encabezado ───
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Mis Estudiantes',
+                Text('Mis Estudiantes',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                    fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  '${_estudiantes.length} estudiantes registrados',
+                Text('${_estudiantes.length} estudiantes registrados',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
-
-          // ─── Contenido principal ───
-          // Tres estados posibles:
-          // 1. Cargando → mostrar spinner
-          // 2. Lista vacía → mostrar mensaje
-          // 3. Con datos → mostrar la lista
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -199,39 +189,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.school_outlined,
-                              size: 64,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant
-                                  .withValues(alpha: 0.5),
-                            ),
+                            Icon(Icons.school_outlined, size: 64,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
                             const SizedBox(height: 16),
-                            Text(
-                              'No hay estudiantes aún',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                            ),
+                            Text('No hay estudiantes aún',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 8),
-                            Text(
-                              'Presiona + para agregar el primero',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                        .withValues(alpha: 0.7),
-                                  ),
-                            ),
+                            Text('Presiona + para agregar el primero',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
                           ],
                         ),
                       )
@@ -241,53 +208,49 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         itemBuilder: (context, index) {
                           final est = _estudiantes[index];
                           final color = _getColorForNota(est.nota);
+
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
+                              contentPadding: const EdgeInsets.only(
+                                left: 16, top: 4, bottom: 4, right: 8),
                               leading: CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer,
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                                 child: Text(
                                   est.nombre[0].toUpperCase(),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimaryContainer,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer),
+                                ),
+                              ),
+                              title: Text(est.nombre,
+                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: Text(est.estadoNota,
+                                style: TextStyle(color: color)),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(20)),
+                                    child: Text(est.notaFormateada,
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
                                   ),
-                                ),
-                              ),
-                              title: Text(
-                                est.nombre,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Text(
-                                est.estadoNota,
-                                style: TextStyle(color: color),
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  est.notaFormateada,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 20),
+                                    tooltip: 'Editar',
+                                    color: Theme.of(context).colorScheme.primary,
+                                    onPressed: () => _navegarAEditar(est),
                                   ),
-                                ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 20),
+                                    tooltip: 'Eliminar',
+                                    color: Colors.red,
+                                    onPressed: () => _eliminarEstudiante(est),
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -296,8 +259,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-
-      // ─── FAB: Agregar estudiante ───
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _navegarAAgregar,
         icon: const Icon(Icons.person_add_rounded),
