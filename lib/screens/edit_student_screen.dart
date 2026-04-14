@@ -1,15 +1,4 @@
-// ============================================================================
-// edit_student_screen.dart - Formulario para editar estudiante (UPDATE)
-// ============================================================================
-//
-// 📚 CONCEPTO CLAVE:
-// Esta pantalla es casi idéntica a AddStudentScreen, con DOS diferencias:
-// 1. Recibe un Student existente por constructor (para prellenar los campos)
-// 2. En vez de .insert() usa .update().eq('id', ...) para modificar la fila
-//
-// Supabase traduce .update().eq() a:
-//   UPDATE estudiantes SET nombre='...', nota=... WHERE id = 5
-// ============================================================================
+
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -53,8 +42,6 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
   // ═══════════════════════════════════════════════════════════════════
   // MÉTODO: _actualizarEstudiante() — UPDATE
   // ═══════════════════════════════════════════════════════════════════
-  //
-  // 📚 ¿Qué hace?
   // 1. Valida el formulario
   // 2. Envía los datos nuevos a Supabase con .update()
   // 3. .eq('id', ...) le dice a Supabase CUÁL fila actualizar
