@@ -1,10 +1,12 @@
 // ============================================================================
-// students_screen.dart - CRUD completo + logout real
+// students_screen.dart - CRUD completo de estudiantes
 // ============================================================================
 //
-// 📚 ¿Qué cambió?
-// El botón de logout ahora llama a supabase.auth.signOut()
-// que destruye la sesión en el servidor Y borra el token local.
+// Operaciones:
+// - READ:   _cargarEstudiantes() → SELECT * FROM estudiantes
+// - CREATE: Navega a AddStudentScreen → INSERT
+// - UPDATE: Navega a EditStudentScreen → UPDATE ... WHERE id = ?
+// - DELETE: _eliminarEstudiante() → DELETE FROM estudiantes WHERE id = ?
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -40,7 +42,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       final data = await _supabase
           .from('estudiantes')
           .select()
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: true);
 
       setState(() {
         _estudiantes = (data as List)
@@ -58,7 +60,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
   }
 
-  // ─── CREATE ───
+  // ─── CREATE: Navegar a agregar ───
   Future<void> _navegarAAgregar() async {
     final resultado = await Navigator.push<bool>(
       context,
@@ -67,7 +69,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (resultado == true) _cargarEstudiantes();
   }
 
-  // ─── UPDATE ───
+  // ─── UPDATE: Navegar a editar ───
+  // Le pasamos el Student completo para prellenar los campos.
   Future<void> _navegarAEditar(Student estudiante) async {
     final resultado = await Navigator.push<bool>(
       context,
@@ -79,6 +82,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   // ─── DELETE ───
+  // Muestra confirmación antes de eliminar.
+  // Equivale a: DELETE FROM estudiantes WHERE id = ?
   Future<void> _eliminarEstudiante(Student estudiante) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -127,30 +132,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // MÉTODO: _handleLogout() — Logout REAL
-  // ═══════════════════════════════════════════════════════════════════
-  //
-  // 📚 ¿Qué hace?
-  // 1. Llama a supabase.auth.signOut()
-  //    → Supabase invalida el token en el servidor
-  //    → Borra el token guardado en el dispositivo
-  // 2. Navega al LoginScreen con pushReplacement
-  //    → El usuario no puede volver con el botón "atrás"
-  //
-  // La próxima vez que abra la app, main.dart detectará
-  // que no hay sesión y mostrará el login.
-
-  Future<void> _handleLogout() async {
-    await _supabase.auth.signOut();
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
-  }
-
   Color _getColorForNota(double nota) {
     if (nota >= 9.0) return Colors.green.shade700;
     if (nota >= 7.0) return Colors.blue.shade700;
@@ -173,8 +154,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar Sesión',
-            // ─── CAMBIO: Ahora cierra sesión de verdad ───
-            onPressed: _handleLogout,
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
           ),
         ],
       ),

@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_native_splash: ^2.4.7
   supabase_flutter: ^2.12.2
 
 dev_dependencies:
@@ -18,3 +19,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
+
+flutter_native_splash:
+  color: "#1565C0"
+  image: assets/splash2.png
+  android_12:
+    color: "#1565C0"
+    image: assets/splash2.png

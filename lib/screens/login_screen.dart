@@ -1,17 +1,24 @@
 // ============================================================================
-// login_screen.dart - Login simulado (igual que Clase 1)
+// login_screen.dart - Login y Registro REAL con Supabase Auth
 // ============================================================================
 //
-// 📚 Este archivo es CASI IDÉNTICO al de Clase 1.
-// El único cambio: ahora navega a StudentsScreen (datos reales de Supabase)
-// en vez de HomeScreen (datos hardcodeados).
+// 📚 ¿Qué cambió respecto al login simulado?
 //
-// El login sigue siendo simulado con Future.delayed.
-// En una clase futura se reemplazará por supabase.auth.signInWithPassword().
+// ANTES: Future.delayed(2 segundos) → navegaba sin verificar nada.
+// AHORA: supabase.auth.signInWithPassword() → verifica email + password
+//        contra la base de datos de Supabase Auth.
+//
+// Si las credenciales son correctas, Supabase retorna un JWT token
+// y Flutter guarda la sesión automáticamente.
+// Si son incorrectas, Supabase lanza una excepción con el mensaje de error.
+//
+// También agregamos un modo REGISTRO (signUp) para que cada docente
+// pueda crear su propia cuenta desde la app.
 // ============================================================================
 
 import 'package:flutter/material.dart';
-import 'students_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'students_screen_bk2.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,10 +28,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _supabase = Supabase.instance.client;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  // ─── Modo: Login o Registro ───
+  // Con esta variable alternamos entre los dos modos
+  // sin necesidad de crear otra pantalla.
+  bool _isRegistro = false;
 
   @override
   void dispose() {
@@ -33,17 +46,98 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    setState(() { _isLoading = true; });
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() { _isLoading = false; });
+  // ═══════════════════════════════════════════════════════════════════
+  // MÉTODO: _handleAuth() — Login o Registro real
+  // ═══════════════════════════════════════════════════════════════════
+  //
+  // 📚 ¿Qué hace?
+  //
+  // Si _isRegistro es false → signInWithPassword (LOGIN)
+  //   Supabase busca el email en auth.users.
+  //   Si existe y el password coincide → retorna sesión.
+  //   Si no → lanza AuthException con mensaje descriptivo.
+  //
+  // Si _isRegistro es true → signUp (REGISTRO)
+  //   Supabase crea un nuevo usuario en auth.users.
+  //   Si el email ya existe → lanza error.
+  //   Si no → crea el usuario y retorna sesión.
 
-    // ─── CAMBIO: Ahora navega a StudentsScreen ───
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const StudentsScreen()),
-    );
+  Future<void> _handleAuth() async {
+    // Validación básica
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa email y contraseña'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La contraseña debe tener al menos 6 caracteres'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() { _isLoading = true; });
+
+    try {
+      if (_isRegistro) {
+        // ─── REGISTRO ───
+        // signUp crea un nuevo usuario en Supabase Auth.
+        await _supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+      } else {
+        // ─── LOGIN ───
+        // signInWithPassword verifica credenciales existentes.
+        await _supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      }
+
+      // Si llegó aquí sin error → éxito
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const StudentsScreen()),
+        );
+      }
+    } on AuthException catch (e) {
+      // ─── Error de Supabase Auth ───
+      // AuthException tiene un .message descriptivo:
+      // "Invalid login credentials", "User already registered", etc.
+      setState(() { _isLoading = false; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // ─── Otro error (sin internet, etc.) ───
+      setState(() { _isLoading = false; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -79,6 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   const SizedBox(height: 48),
+
+                  // ─── Campo: Email ───
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -87,13 +183,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       labelText: 'Correo electrónico',
                       hintText: 'usuario@ejemplo.com',
                       prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder())),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   const SizedBox(height: 16),
+
+                  // ─── Campo: Contraseña ───
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _isLoading ? null : _handleLogin(),
+                    onSubmitted: (_) => _isLoading ? null : _handleAuth(),
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       prefixIcon: const Icon(Icons.lock_outlined),
@@ -104,18 +204,39 @@ class _LoginScreenState extends State<LoginScreen> {
                           : Icons.visibility_off_outlined),
                         onPressed: () {
                           setState(() { _obscurePassword = !_obscurePassword; });
-                        }))),
+                        },
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 32),
+
+                  // ─── Botón principal: Login o Registro ───
                   SizedBox(
                     width: double.infinity, height: 48,
                     child: FilledButton(
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: _isLoading ? null : _handleAuth,
                       child: _isLoading
                         ? const SizedBox(height: 24, width: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                        : const Text('Iniciar Sesión',
-                            style: TextStyle(fontSize: 16)))),
+                        : Text(
+                            _isRegistro ? 'Crear Cuenta' : 'Iniciar Sesión',
+                            style: const TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ─── Alternar entre Login y Registro ───
+                  TextButton(
+                    onPressed: () {
+                      setState(() { _isRegistro = !_isRegistro; });
+                    },
+                    child: Text(
+                      _isRegistro
+                        ? '¿Ya tienes cuenta? Inicia Sesión'
+                        : '¿No tienes cuenta? Regístrate',
+                    ),
+                  ),
                 ],
               ),
             ),
