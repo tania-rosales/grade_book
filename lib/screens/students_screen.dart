@@ -12,7 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../model/student.dart';
 import 'add_student_screen.dart';
 import 'edit_student_screen.dart';
-import 'login_screen_bk2.dart';
+import 'login_screen.dart';
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});

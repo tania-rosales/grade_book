@@ -16,8 +16,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
-import 'screens/login_screen_bk2.dart';
-import 'screens/students_screen_bk2.dart';
+import 'screens/login_screen.dart';
+import 'screens/students_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
